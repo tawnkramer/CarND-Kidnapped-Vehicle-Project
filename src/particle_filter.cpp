@@ -111,6 +111,9 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 		if (pClosest != nullptr)
 		{
 			pred.id = pClosest->id;
+
+			//to save time with our multi-variate normal probablity calc later,
+			//we will save these terms that depend on distance from associated landmark
 			pred.dx = pClosest->x - pred.x;
 			pred.dy = pClosest->y - pred.y;
 		}

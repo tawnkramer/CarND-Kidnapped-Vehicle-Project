@@ -46,6 +46,9 @@ struct LandmarkObs {
 	int id;				// Id of matching landmark in the map.
 	double x;			// Local (vehicle coordinates) x position of landmark observation [m]
 	double y;			// Local (vehicle coordinates) y position of landmark observation [m]
+	double dx;			// Local (vehicle coordinates) difference x from observation to landmark observation [m]
+	double dy;			// Local (vehicle coordinates) difference y from observation to landmark observation [m]
+
 };
 
 /*
@@ -56,6 +59,16 @@ struct LandmarkObs {
  */
 inline double dist(double x1, double y1, double x2, double y2) {
 	return sqrt((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
+}
+
+/*
+ * Computes the Euclidean distance between two 2D points - squared
+ * @param (x1,y1) x and y coordinates of first point
+ * @param (x2,y2) x and y coordinates of second point
+ * @output Euclidean distance between two 2D points squared
+ */
+inline double dist_sqrd(double x1, double y1, double x2, double y2) {
+	return ((x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1));
 }
 
 inline double * getError(double gt_x, double gt_y, double gt_theta, double pf_x, double pf_y, double pf_theta) {

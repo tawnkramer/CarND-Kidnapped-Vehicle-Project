@@ -4,6 +4,8 @@
 #include <math.h>
 #include "particle_filter.h"
 
+#define INIT_PARTICLE_COUNT 1000
+
 using namespace std;
 
 // for convenience
@@ -72,7 +74,7 @@ int main()
 			double sense_y = std::stod(j[1]["sense_y"].get<std::string>());
 			double sense_theta = std::stod(j[1]["sense_theta"].get<std::string>());
 
-			pf.init(sense_x, sense_y, sense_theta, sigma_pos);
+			pf.init(sense_x, sense_y, sense_theta, sigma_pos, INIT_PARTICLE_COUNT);
 		  }
 		  else {
 			// Predict the vehicle's next state from previous (noiseless control) data.
@@ -102,7 +104,7 @@ int main()
         	std::istream_iterator<float>(),
         	std::back_inserter(y_sense));
 
-        	for(int i = 0; i < x_sense.size(); i++)
+        	for(unsigned int i = 0; i < x_sense.size(); i++)
         	{
         		LandmarkObs obs;
         		obs.x = x_sense[i];

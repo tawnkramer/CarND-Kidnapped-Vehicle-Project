@@ -57,9 +57,10 @@ public:
 	 * @param y Initial y position [m]
 	 * @param theta Initial orientation [rad]
 	 * @param std[] Array of dimension 3 [standard deviation of x [m], standard deviation of y [m]
+	 * @param num_particles to init
 	 *   standard deviation of yaw [rad]]
 	 */
-	void init(double x, double y, double theta, double std[]);
+	void init(double x, double y, double theta, double std[], int _num_particles);
 
 	/**
 	 * prediction Predicts the state for the next time step

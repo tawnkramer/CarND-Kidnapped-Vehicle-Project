@@ -49,6 +49,15 @@ void ParticleFilter::init(double x, double y, double theta, double std[], int _n
 
 }
 
+void normalize_angle(double& angle)
+{
+	while(angle > 2 * M_PI)
+		angle -= 2 * M_PI;
+
+	while(angle < 0.0)
+		angle += 2 * M_PI;
+}
+
 void ParticleFilter::prediction(double delta_t, double std_pos[], double velocity, double yaw_rate) {
 	// Add measurements to each particle and add random Gaussian noise.
 
@@ -70,6 +79,9 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			p.x += vel_over_yaw * (sin(p.theta + yaw_rate_dt) - sin(p.theta)) + noise_x(rand_eng);
 			p.y += vel_over_yaw * (cos(p.theta) - cos(p.theta + yaw_rate_dt)) + noise_y(rand_eng);
 			p.theta += yaw_rate_dt + noise_theta(rand_eng);
+
+			normalize_angle(p.theta);
+
 		}
 	}
 	else
@@ -80,6 +92,8 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 			p.x += velocity * cos(p.theta) + noise_x(rand_eng);
 			p.y += velocity * sin(p.theta) + noise_y(rand_eng);
 			p.theta += noise_theta(rand_eng);
+
+			normalize_angle(p.theta);
 		}
 	}
 }
@@ -110,12 +124,12 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 		if (pClosest != nullptr)
 		{
-			pred.id = pClosest->id;
+			pClosest->id = pred.id;
 
 			//to save time with our multi-variate normal probablity calc later,
 			//we will save these terms that depend on distance from associated landmark
-			pred.dx = pClosest->x - pred.x;
-			pred.dy = pClosest->y - pred.y;
+			pClosest->dx = pred.x - pClosest->x;
+			pClosest->dy = pred.y - pClosest->y;
 		}
 	}
 }
@@ -155,7 +169,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		{
 			tm_obs.id = obs.id;
 			tm_obs.x = (cos_theta * obs.x) - (sin_theta * obs.y) + p.x;
-			tm_obs.x = (sin_theta * obs.x) + (cos_theta * obs.y) + p.y;
+			tm_obs.y = (sin_theta * obs.x) + (cos_theta * obs.y) + p.y;
 
 			obs_relative_to_particle.push_back(tm_obs);
 		}
@@ -182,7 +196,7 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		}
 
 		//associate an observation with the closest landmark
-		dataAssociation(obs_relative_to_particle, lm_in_range);
+		dataAssociation(lm_in_range, obs_relative_to_particle);
 
 		//determine the weight of the particle as the product of
 		//the Multivariate-Gaussian Problabilities of dist to each observed landmark
@@ -190,11 +204,14 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 
 		double exponent, weight;
 
+		p.associations.clear();
+
 		for(auto& obs : obs_relative_to_particle)
 		{
 			exponent = (obs.dx * obs.dx) / two_sigma_x_sq + (obs.dy * obs.dy) / two_sigma_y_sq;
 			weight = gauss_norm * exp(-1.0 * exponent);
 			p.weight *= weight;
+			p.associations.push_back(obs.id);
 		}
 
 
@@ -211,11 +228,14 @@ void ParticleFilter::resample() {
     std::mt19937 gen(rd());
 	
 	//create an integral type from our double weight array.
-	vector<long> int_weights(weights.size());
+	vector<long> int_weights;
 	for(auto& w  : weights)
 	{
 		int_weights.push_back(long(w * 100000.0));
 	}
+
+	if(weights.size() != particles.size())
+		cout << weights.size() << particles.size() << endl;
 
     std::discrete_distribution<> d(int_weights.begin(), int_weights.end());
 
@@ -226,7 +246,11 @@ void ParticleFilter::resample() {
 		//sample a previous particle based on the discrete distribution
         int iPrevPart = d(gen);
 
-		particles[iNewPart] = prev_particles[iPrevPart];
+		if(iPrevPart > -1 && iPrevPart < prev_particles.size())
+			particles[iNewPart] = prev_particles[iPrevPart];
+		else
+			cout << "iPrevPart " << iPrevPart << endl;
+
     }
 }
 

@@ -203,16 +203,29 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		p.weight = 1.0;
 
 		double exponent, weight;
+		const double min_weight = 0.0001;
 
 		p.associations.clear();
+		double prob = 0.0;
 
 		for(auto& obs : obs_relative_to_particle)
 		{
-			exponent = (obs.dx * obs.dx) / two_sigma_x_sq + (obs.dy * obs.dy) / two_sigma_y_sq;
-			weight = gauss_norm * exp(-1.0 * exponent);
-			p.weight *= weight;
-			p.associations.push_back(obs.id);
+			//exponent = (obs.dx * obs.dx) / two_sigma_x_sq + (obs.dy * obs.dy) / two_sigma_y_sq;
+			//weight = gauss_norm * exp(-1.0 * exponent);
+			//p.weight *= (weight > min_weight) ? weight : min_weight;
+
+			//do calculation in log space to avoid numerical underflow
+			//https://stats.stackexchange.com/questions/95322/problem-with-estimating-probability-using-the-multivariate-gaussian
+			double scale = log( 2.0 * sigma_x * sigma_y * M_PI);
+			double d0 = (obs.dx) * (obs.dx) / (sigma_x * sigma_x);
+			double d1 = (obs.dy) * (obs.dy) / (sigma_y * sigma_y);
+			double mvnormal_log_density = -0.5 * (scale + d0 + d1);
+
+			prob += mvnormal_log_density;
 		}
+
+		//expoentiate once at the end
+		p.weight = exp(prob);
 
 
 		weights.push_back(p.weight);
@@ -227,6 +240,7 @@ void ParticleFilter::resample() {
 	std::random_device rd;
     std::mt19937 gen(rd());
 	
+	/* Not sure why I was getting an error before...
 	//create an integral type from our double weight array.
 	vector<long> int_weights;
 	for(auto& w  : weights)
@@ -235,9 +249,11 @@ void ParticleFilter::resample() {
 	}
 
 	if(weights.size() != particles.size())
-		cout << weights.size() << particles.size() << endl;
+		cout << weights.size() << particles.size() << endl;		
 
     std::discrete_distribution<> d(int_weights.begin(), int_weights.end());
+	*/
+    std::discrete_distribution<> d(weights.begin(), weights.end());
 
 	std::vector<Particle> prev_particles = particles;
 
@@ -249,7 +265,7 @@ void ParticleFilter::resample() {
 		if(iPrevPart > -1 && iPrevPart < prev_particles.size())
 			particles[iNewPart] = prev_particles[iPrevPart];
 		else
-			cout << "iPrevPart " << iPrevPart << endl;
+			cout << "err: iPrevPart out of range" << iPrevPart << endl;
 
     }
 }

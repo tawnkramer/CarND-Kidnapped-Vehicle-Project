@@ -65,7 +65,7 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 	normal_distribution<double> noise_x(0.0, std_pos[0]);
 	normal_distribution<double> noise_y(0.0, std_pos[1]);
 	normal_distribution<double> noise_theta(0.0, std_pos[2]);
-	const double thresh = 0.0001;
+	const double thresh = 0.001;
 
 	//Nearly straight line motion causes division by zero in yaw calculation.
 	//Test once outside our loop for better performance.
@@ -89,11 +89,12 @@ void ParticleFilter::prediction(double delta_t, double std_pos[], double velocit
 		//No appreciable rotation, straight line motion model
 		for(auto& p : particles)
 		{
-			p.x += velocity * cos(p.theta) + noise_x(rand_eng);
-			p.y += velocity * sin(p.theta) + noise_y(rand_eng);
+			normalize_angle(p.theta);
+
+			p.x += velocity * delta_t * cos(p.theta) + noise_x(rand_eng);
+			p.y += velocity * delta_t * sin(p.theta) + noise_y(rand_eng);
 			p.theta += noise_theta(rand_eng);
 
-			normalize_angle(p.theta);
 		}
 	}
 }
@@ -203,30 +204,13 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 		p.weight = 1.0;
 
 		double exponent, weight;
-		const double min_weight = 0.0001;
-
-		p.associations.clear();
-		double prob = 0.0;
 
 		for(auto& obs : obs_relative_to_particle)
 		{
-			//exponent = (obs.dx * obs.dx) / two_sigma_x_sq + (obs.dy * obs.dy) / two_sigma_y_sq;
-			//weight = gauss_norm * exp(-1.0 * exponent);
-			//p.weight *= (weight > min_weight) ? weight : min_weight;
-
-			//do calculation in log space to avoid numerical underflow
-			//https://stats.stackexchange.com/questions/95322/problem-with-estimating-probability-using-the-multivariate-gaussian
-			double scale = log( 2.0 * sigma_x * sigma_y * M_PI);
-			double d0 = (obs.dx) * (obs.dx) / (sigma_x * sigma_x);
-			double d1 = (obs.dy) * (obs.dy) / (sigma_y * sigma_y);
-			double mvnormal_log_density = -0.5 * (scale + d0 + d1);
-
-			prob += mvnormal_log_density;
+			exponent = (obs.dx * obs.dx) / two_sigma_x_sq + (obs.dy * obs.dy) / two_sigma_y_sq;
+			weight = gauss_norm * exp(-1.0 * exponent);
+			p.weight *= weight;
 		}
-
-		//expoentiate once at the end
-		p.weight = exp(prob);
-
 
 		weights.push_back(p.weight);
 	}
@@ -239,20 +223,6 @@ void ParticleFilter::resample() {
 
 	std::random_device rd;
     std::mt19937 gen(rd());
-	
-	/* Not sure why I was getting an error before...
-	//create an integral type from our double weight array.
-	vector<long> int_weights;
-	for(auto& w  : weights)
-	{
-		int_weights.push_back(long(w * 100000.0));
-	}
-
-	if(weights.size() != particles.size())
-		cout << weights.size() << particles.size() << endl;		
-
-    std::discrete_distribution<> d(int_weights.begin(), int_weights.end());
-	*/
     std::discrete_distribution<> d(weights.begin(), weights.end());
 
 	std::vector<Particle> prev_particles = particles;
@@ -261,12 +231,7 @@ void ParticleFilter::resample() {
 	{
 		//sample a previous particle based on the discrete distribution
         int iPrevPart = d(gen);
-
-		if(iPrevPart > -1 && iPrevPart < prev_particles.size())
-			particles[iNewPart] = prev_particles[iPrevPart];
-		else
-			cout << "err: iPrevPart out of range" << iPrevPart << endl;
-
+		particles[iNewPart] = prev_particles[iPrevPart];
     }
 }
 
